@@ -34,7 +34,7 @@ def get_lib_path():
 
 class JSError(Exception):
     def __init__(self,ErrorInfo):
-        super().__init__(self)
+        super(JSError,self).__init__()
         self.errorinfo = ErrorInfo
     def __str__(self):
         return self.errorinfo
