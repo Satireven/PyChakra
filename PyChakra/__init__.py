@@ -8,13 +8,11 @@
 #
 # PyChakra is a Python binding to Microsoft Chakra JavaScript engine.
 
-
-import ctypes
-import platform
 import sys
 import json
+import platform
 from os import path
-
+from ctypes import *
 
 def get_lib_path():
     root = path.dirname(__file__)
@@ -34,26 +32,28 @@ def get_lib_path():
     raise RuntimeError("ChakraCore not support your platform: %s, detail see: https://github.com/Microsoft/ChakraCore",
                        sys.platform)
 
-
-def point(obj):
-    return ctypes.byref(obj)
+class JSError(Exception):
+    def __init__(self,ErrorInfo):
+        super().__init__(self)
+        self.errorinfo = ErrorInfo
+    def __str__(self):
+        return self.errorinfo
 
 
 class Runtime:
-
     def __init__(self):
-        # load dynamic library
-        self.chakraCore = ctypes.CDLL(get_lib_path())
-
-        # create chakra runtime and context
-        self.runtime = ctypes.c_void_p()
-        self.chakraCore.JsCreateRuntime(0, 0, point(self.runtime))
-
-        self.context = ctypes.c_void_p()
-        self.chakraCore.JsCreateContext(self.runtime, point(self.context))
-
-        self.chakraCore.JsSetCurrentContext(self.context)
-
+        self.chakraCore = CDLL(get_lib_path())
+        self.__mcode = ["""var replace = function(k,v) {
+                if (typeof v === 'function') {
+                    return Function.prototype.toString.call(v)
+                } else if (v === undefined ) {
+                    return null
+                } else {
+                    return v
+                } };"""]
+        self.__count = 0
+        self.__init_runtime()
+        self.__init_context()
         # call DllMain manually on non-Windows
         if sys.platform != "win32":
             # Attach process
@@ -61,102 +61,95 @@ class Runtime:
             # Attach main thread
             self.chakraCore.DllMain(0, 2, 0)
 
-        # get JSON.stringify reference, and create its called arguments array
-        self.__jsonStringify = self.eval("JSON.stringify", raw=True)[1]
-
-        undefined = ctypes.c_void_p()
-        self.chakraCore.JsGetUndefinedValue(point(undefined))
-
-        self.__jsonStringifyArgs = (ctypes.c_void_p * 2)()
-        self.__jsonStringifyArgs[0] = undefined
-
+    def __init_runtime(self):
+        self.runtime = c_void_p()
+        self.chakraCore.JsCreateRuntime(0, 0, byref(self.runtime))
+    
+    def __init_context(self):
+        self.context = c_void_p()
+        self.chakraCore.JsCreateContext(self.runtime, byref(self.context))
+        self.chakraCore.JsSetCurrentContext(self.context)
+    
     def __del__(self):
+        # Dispose runtime
         self.chakraCore.JsDisposeRuntime(self.runtime)
 
-    def eval(self, js_string, raw=False):
-        if sys.platform == "win32":
-            js_source = ctypes.c_wchar_p("")
-            js_script = ctypes.c_wchar_p(js_string)
-
-            result = ctypes.c_void_p()
-            err = self.chakraCore.JsRunScript(js_script, 0, js_source, point(result))
-
-        else:
-            js_source = ctypes.c_void_p()
-            self.chakraCore.JsCreateString("", 0, point(js_source))
-
-            js_script = ctypes.c_void_p()
-            js_string = ctypes.create_string_buffer(js_string.encode("UTF-16"))
-            self.chakraCore.JsCreateExternalArrayBuffer(js_string, len(js_string), 0, 0, point(js_script))
-
-            result = ctypes.c_void_p()
-            err = self.chakraCore.JsRun(js_script, 0, js_source, 0x02, point(result))
-
-        # eval success
-        if err == 0:
-            if raw:
-                return True, result
-            else:
-                return self.__js_value_to_py_value(result)
-
-        return self.__get_error(err)
-
-    def __js_value_to_py_value(self, js_value):
-        self.__jsonStringifyArgs[1] = js_value
-
-        # value => json
-        result = ctypes.c_void_p()
-        err = self.chakraCore.JsCallFunction(self.__jsonStringify, point(self.__jsonStringifyArgs), 2, point(result))
-
-        if err == 0:
-            result = self.__js_value_to_str(result)
-            if result == "undefined":
-                result = None
-            else:
-                # json => value
-                result = json.loads(result)
-            return True, result
-
-        return self.__get_error(err)
-
-    def get_variable(self, name):
-        result = self.eval("(() => %s)()" % name)
-        if result[0]:
-            return result[1]
-        return None
-
-    def set_variable(self, name, value):
-        return self.eval("var %s = %s" % (name, value))
-
-    def __get_error(self, err):
-        # js exception or other error
-        if err == 196609:
-            err = self.__get_exception()
-
-        return False, err
-
     def __get_exception(self):
-        exception = ctypes.c_void_p()
-        self.chakraCore.JsGetAndClearException(point(exception))
+        exception = c_void_p()
+        self.chakraCore.JsGetAndClearException(byref(exception))
 
-        return self.__js_value_to_str(exception)
+        exception_id = c_void_p()
+        self.chakraCore.JsCreatePropertyId(b"message", 7, byref(exception_id))
 
-    def __js_value_to_str(self, js_value):
-        js_value_ref = ctypes.c_void_p()
-        self.chakraCore.JsConvertValueToString(js_value, point(js_value_ref))
+        value = c_void_p()
+        self.chakraCore.JsGetProperty(exception, exception_id, byref(value))
 
-        if sys.platform == "win32":
-            result = ctypes.c_wchar_p()
-            result_len = ctypes.c_size_t()
-            self.chakraCore.JsStringToPointer(js_value_ref, point(result), point(result_len))
+        return self.__js_value_to_str(value)
+    
+    def __js_value_to_str(self,jsResult):
+        # Convert script result to String in JavaScript; redundant if script returns a String
+        resultJSString = c_void_p()
+        self.chakraCore.JsConvertValueToString(jsResult, byref(resultJSString))
+        stringLength = c_size_t()
+        # Get buffer size needed for the result string
+        self.chakraCore.JsCopyString(resultJSString, 0, 0, byref(stringLength))
+        resultSTR = create_string_buffer(stringLength.value + 1); # buffer is big enough to store the result
+        # Get String from JsValueRef
+        self.chakraCore.JsCopyString(resultJSString, byref(resultSTR), stringLength.value + 1, 0)
+        # Set `null-ending` to the end
+        resultSTRLastByte = (c_char * stringLength.value).from_address(addressof(resultSTR))
+        resultSTRLastByte = '\0'
+        return resultSTR.value.decode('utf8')
 
-            return result.value
+    def eval(self,script):
+        self.__count += 1
+        if self.__count == 5: # Reset Context Incase exploied
+            self.__init_context()
+            self.__count = 0
 
+        script = '\n'.join(self.__mcode)+'''\nJSON.stringify(eval(%s),replace);'''%repr(script)
+        script = create_string_buffer(script.encode('UTF-16'))
+        
+        fname = c_void_p()
+        # create JsValueRef from filename
+        self.chakraCore.JsCreateString("", 0, byref(fname))
+        scriptSource = c_void_p()
+        # Create ArrayBuffer from script source
+        self.chakraCore.JsCreateExternalArrayBuffer(script, len(script), 0, 0, byref(scriptSource))
+        jsResult = c_void_p()
+        # Run the script.
+        err = self.chakraCore.JsRun(scriptSource, 0 , fname, 0x02, byref(jsResult))
+        if err == 0:
+            return json.loads(self.__js_value_to_str(jsResult))
+        # js exception
+        elif err == 196609:
+            raise JSError(self.__get_exception())
+        # other error
         else:
-            str_len = ctypes.c_size_t()
-            self.chakraCore.JsCopyString(js_value_ref, 0, 0, point(str_len))
+            raise Exception(jsResult)
+    
+    def set_variable(self,name,value):
+        self.eval("var %s = %s" % (name, json.dumps(value)))
+        return True
 
-            result = ctypes.create_string_buffer(str_len.value)
-            self.chakraCore.JsCopyString(js_value_ref, point(result), str_len.value, 0)
+    def get_variable(self,name):
+        value = self.eval("JSON.stringify((() => %s)())" % name)
+        return json.loads(value)
+    
+    def require(self,js_file):
+        with open(js_file) as f:
+            self.__mcode.append(f.read())
+    
+    def compile(self,script):
+        '''Add some function to the context. But not Running, wait for Call.If you want to run it,just eval it.'''
+        self.__mcode.append(script)
 
-            return result.value.decode("UTF-8")
+    def call(self,identifier,*args):
+        args = json.dumps(args)
+        return self.eval("%s.apply(this, %s)"%(identifier, args))
+    
+    def call_for_each(self,identifier,*args):
+        args = json.dumps(args)
+        script = '''function callForEverybody(bodys) { return bodys.map(x => %s(x));}
+        callForEverybody.apply(this,%s);'''%(identifier,args)
+        return self.eval(script)
