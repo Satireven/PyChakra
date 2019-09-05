@@ -137,7 +137,7 @@ class Runtime:
         return json.loads(value)
     
     def require(self,js_file):
-        with open(js_file) as f:
+        with open(js_file,'r',encoding='utf-8',errors='ignore') as f:
             self.__mcode.append(f.read())
     
     def compile(self,script):
@@ -149,6 +149,7 @@ class Runtime:
         return self.eval("%s.apply(this, %s)"%(identifier, args))
     
     def call_for_each(self,identifier,*args):
+        '''Call the same function for each item in the list'''
         args = json.dumps(args)
         script = '''function callForEverybody(bodys) { return bodys.map(x => %s(x));}
         callForEverybody.apply(this,%s);'''%(identifier,args)
