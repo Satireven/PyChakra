@@ -7,7 +7,7 @@ import unittest
 ROOT = os.path.abspath(os.path.join(__file__, '../..'))
 sys.path.append(ROOT)
 
-from PyChakra import Runtime  # noqa:E402
+from PyChakra import Runtime
 
 react = 'test/js/react.production.min.js'
 react_domserver = 'test/js/react-dom-server.browser.production.min.js'

@@ -1,34 +1,26 @@
-# PyChakra
+# PyEvalJS
 
-[![Azure Build Status](https://dev.azure.com/zhengrenzhe/All%20Code%20Tests/_apis/build/status/PyChakra?branchName=master)](https://dev.azure.com/zhengrenzhe/All%20Code%20Tests/_build/latest?definitionId=2&branchName=master)
-[![Github Build Status](https://github.com/zhengrenzhe/PyChakra/workflows/Test/badge.svg)](https://github.com/zhengrenzhe/PyChakra/actions)
-[![LICENSE](https://img.shields.io/github/license/zhengrenzhe/PyChakra.svg)](https://github.com/zhengrenzhe/PyChakra)
-[![VERSION](https://img.shields.io/pypi/v/PyChakra.svg)](https://pypi.org/project/PyChakra/)
-[![DL](https://img.shields.io/pypi/dm/PyChakra.svg)](https://pypi.org/project/PyChakra/)
-
-
-PyChakra is a Python binding to [Microsoft Chakra](https://github.com/Microsoft/ChakraCore)(v1.11.11) Javascript engine.
-
-Chakra is a modern JavaScript engine for Microsoft Edge, it support 96% ES6 feature, Complete info see [https://kangax.github.io/compat-table/es6/](https://kangax.github.io/compat-table/es6/)
+PyEvalJS is a python wrapper for [Microsoft Chakra](https://github.com/Microsoft/ChakraCore) engine, it act as a bridge between the Python and JavaScript objects, and with this module you can easily run JavaScript Code in Python without having to install nodejs.
 
 ## Installation
 
-```
-pip install PyChakra
-```
+    pip install PyEvalJS
 
 ## Usage
+
 ### Execute a script
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.eval("'red yellow blue'.split(' ')")
 ['red', 'yellow', 'blue']
 ```
 
 ### Call a function
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.compile("""
 ...     function add(x, y) {
@@ -38,9 +30,11 @@ pip install PyChakra
 >>> runtime.call("add",1,2)
 3
 ```
+
 or just put args into the script
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.eval("""
 ...     function add2(num) {
@@ -48,9 +42,11 @@ or just put args into the script
 ...     } add2(8);""")
 10
 ```
+
 or by passing parameters
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.set_variable("a",8)
 True
@@ -61,10 +57,10 @@ True
 10
 ```
 
-
 ### Passing parameters
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.set_variable("name", ['Jim','Bob','Tour'])
 True
@@ -73,8 +69,9 @@ True
 ```
 
 ### Use a JavaScript module
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.require("./js/crypto-js.js")  #import CryptoJS
 >>> runtime.compile("""
@@ -94,8 +91,9 @@ True
 ```
 
 ### Call the same function for each item in the list
+
 ```python
->>> from PyChakra import Runtime
+>>> from PyEvalJS import Runtime
 >>> runtime = Runtime()
 >>> runtime.compile("""
 ...     function add2(num) {
@@ -116,3 +114,15 @@ True
 - macOS x64
 - Linux x64
 - Windows x86/x64 (tested on Windows 10 x64, Python 3.7)
+
+## Contributing
+
+1. Fork it!
+2. Create your feature branch: `git checkout -b my-new-feature`
+3. Commit your changes: `git commit -am 'Add some feature'`
+4. Push to the branch: `git push origin my-new-feature`
+5. Submit a pull request :D
+
+## Licence
+
+Code released under [the MIT license](https://github.com/Satireven/PyEvalJS/blob/master/LICENSE)

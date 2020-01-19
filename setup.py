@@ -1,27 +1,36 @@
-# -*- coding: utf-8 -*-
+import io
+import re
 
 from setuptools import setup
+from setuptools import find_packages
+
+with io.open("README.md", "rt", encoding="utf8") as f:
+    readme = f.read()
+
+with io.open("src/PyEvalJS/__init__.py", "rt", encoding="utf8") as f:
+    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 
 setup(
-    name="PyChakra",
-    version="2.2.0",
-    packages=["PyChakra"],
-    package_dir={"PyChakra": "PyChakra"},
-    description="Python binding to Microsoft Chakra JavaScript engine",
-    long_description=open("README.rst").read(),
-    author="zhengrenzhe",
-    author_email="zhengrenzhe.niujie@gmail.com",
-    url="https://github.com/zhengrenzhe/PyChakra",
-    keywords="Chakra ChakraCore V8 JavaScript js-engine binding",
+    name="PyEvalJS",
+    version=version,
+    packages=find_packages("src"),
+    package_dir={"": "src"},
+    description="Run JavaScript Code in Python through the Microsoft Chakra engine",
+    long_description=readme,
+    long_description_content_type="text/markdown",
+    author="Satireven",
+    author_email="satireven@gmail.com",
+    url="https://github.com/Satireven/PyEvalJS",
+    keywords="Python JavaScript js-engine Chakra ChakraCore V8",
     license="MIT",
     python_requires=">2.6, !=3.0.*, !=3.1.*, !=3.2.*",
     include_package_data=True,
     package_data={
         "libs": [
-            "PyChakra/libs/linux/libChakraCore.so",
-            "PyChakra/libs/osx/libChakraCore.dylib",
-            "PyChakra/libs/windows/x64/ChakraCore.dll",
-            "PyChakra/libs/windows/x86/ChakraCore.dll",
+            "src/PyEvalJS/libs/linux/libChakraCore.so",
+            "src/PyEvalJS/libs/osx/libChakraCore.dylib",
+            "src/PyEvalJS/libs/windows/x64/ChakraCore.dll",
+            "src/PyEvalJS/libs/windows/x86/ChakraCore.dll",
         ]
     },
     classifiers=[
